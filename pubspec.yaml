@@ -1,0 +1,19 @@
+name: clinical_trails_client
+description: "Clinical trails api client"
+version: 0.0.1
+homepage: https://github.com/mskayali/clinicaltrails_dart_client
+
+environment:
+  sdk: ^3.5.4
+  flutter: ">=1.17.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  dio: ^5.8.0+1
+  dart_rss: ^3.0.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
