@@ -12,6 +12,7 @@ class _ApiClient {
   _ApiClient({Dio? dio, required this.baseUrl}) : _dio = dio ?? Dio();
 
   Future<Response> getRequest(String endpoint, {Map<String, dynamic>? queryParams}) async {
+    print(queryParams);
     try {
       final response = await _dio.get('$baseUrl$endpoint', queryParameters: queryParams);
       return response;
@@ -101,10 +102,12 @@ class GetStudiesRequest extends _ApiClient {
   final MarkupFormat markupFormat;
 
   /// Search term to filter studies (affects ranking if sorted by relevance)
+  // final String? queryCont;
+
   final String? queryTerm;
 
   /// Search phrase to match exact study descriptions
-  final String? queryPhrase;
+  // final String? queryPhrase;
 
   /// Search by study condition
   final String? queryCond;
@@ -190,7 +193,7 @@ class GetStudiesRequest extends _ApiClient {
     this.format = Format.json,
     this.markupFormat = MarkupFormat.markdown,
     this.queryTerm,
-    this.queryPhrase,
+    // this.queryPhrase,
     this.queryCond,
     this.queryLocn,
     this.queryTitles,
@@ -214,8 +217,8 @@ class GetStudiesRequest extends _ApiClient {
     this.geoDecay,
     this.fields,
     this.sort,
-    this.countTotal = false,
-    this.pageSize = 10,
+    this.countTotal = true,
+    this.pageSize = 20,
     this.pageToken,
   });
 
@@ -225,7 +228,7 @@ class GetStudiesRequest extends _ApiClient {
       'format': format.name,
       'markupFormat': markupFormat.name,
       if (queryTerm != null) 'query.term': queryTerm,
-      if (queryPhrase != null) 'query.phrase': queryPhrase,
+      // if (queryPhrase != null) 'query.phrase': queryPhrase,
       if (queryCond != null) 'query.cond': queryCond,
       if (queryLocn != null) 'query.locn': queryLocn,
       if (queryTitles != null) 'query.titles': queryTitles,
