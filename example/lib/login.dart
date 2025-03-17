@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:json_to_form/json_schema.dart';
 
 class Login extends StatefulWidget {
-  Login({Key? key}) : super(key: key);
+  const Login({super.key});
   @override
   _Login createState() => _Login();
 }

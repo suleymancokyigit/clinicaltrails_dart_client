@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:json_to_form/json_schema.dart';
 
 class Register extends StatefulWidget {
-  Register({Key? key}) : super(key: key);
+  const Register({super.key});
 
   // This widget is the home page of your application. It is stateful, meaning
   // that it has a State object (defined below) that contains fields that affect

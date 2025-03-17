@@ -1,0 +1,21 @@
+[
+    {
+      "id": 1,
+      "title": "Medical Research A",
+      "type": "Remote",
+      "age": 25,
+      "gender": "Male",
+      "trialPhase": "Phase 2",
+      "sponsor": "Sponsor 1"
+    },
+    {
+      "id": 2,
+      "title": "Medical Research B",
+      "type": "On Site",
+      "age": 30,
+      "gender": "Female",
+      "trialPhase": "Phase 3",
+      "sponsor": "Sponsor 2"
+    }
+  ]
+  

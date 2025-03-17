@@ -1,11 +1,9 @@
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:json_to_form/json_schema.dart';
 
 class RegisterMap extends StatefulWidget {
-  RegisterMap({Key? key}) : super(key: key);
+  const RegisterMap({super.key});
 
   // This widget is the home page of your application. It is stateful, meaning
   // that it has a State object (defined below) that contains fields that affect
@@ -104,11 +102,11 @@ class _RegisterMap extends State<RegisterMap> {
           // in the middle of the parent.
           child: Column(children: <Widget>[
             Container(
+              margin: const EdgeInsets.only(top: 10.0),
               child: const Text(
                 "Register Form With Map",
                 style: TextStyle(fontSize: 30.0, fontWeight: FontWeight.bold),
               ),
-              margin: const EdgeInsets.only(top: 10.0),
             ),
             JsonSchema(
               formMap: form,
