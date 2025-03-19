@@ -1,11 +1,13 @@
-import 'package:example/MapPage.dart';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:multi_select_flutter/multi_select_flutter.dart';
+import 'dart:html' as html;
+import 'package:csv/csv.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -20,6 +22,161 @@ class _MainPageState extends State<MainPage> {
   Map<String, String> filters = {};
   Map<String, String> queryParameters = {};
   bool showFilters = false;
+  List<String> selectedOverallStatus = ['RECRUITING'];
+  late GoogleMapController mapController;
+  late LatLng center1 = const LatLng(39.92077, 32.85411); // Varsayılan: Ankara
+
+  void _onMapCreated(GoogleMapController controller) {
+    mapController = controller;
+    setState(() {
+      // Google Maps API'nin yüklendiğini kontrol edin
+      if (mapController != null) {
+        print("Google Maps API yüklendi.");
+      } else {
+        print("Google Maps API yüklenemedi.");
+      }
+    });
+  }
+
+  Future<LatLng> getUserLocation() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    // Konum servisi açık mı?
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      return const LatLng(39.92077, 32.85411); // Varsayılan: Ankara
+    }
+
+    // Kullanıcıdan izin iste
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        return const LatLng(
+            39.92077, 32.85411); // İzin verilmezse default konum
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      return const LatLng(39.92077, 32.85411);
+    }
+
+    // Kullanıcının mevcut konumunu al
+    Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high);
+
+    return LatLng(position.latitude, position.longitude);
+  }
+
+  void downloadCSV() {
+    List<List<String>> csvData = [
+      [
+        'NCT ID',
+        'Study Title',
+        'Organization',
+        'Status',
+        'Start Date',
+        'Completion Date',
+        'Lead Sponsor',
+        'Location'
+      ]
+    ];
+
+    for (var study in filteredStudies) {
+      final id =
+          study['protocolSection']['identificationModule']['nctId'] ?? 'N/A';
+      final title = study['protocolSection']['identificationModule']
+              ['briefTitle'] ??
+          'Unknown';
+      final org = study['protocolSection']['identificationModule']
+              ['organization']['fullName'] ??
+          'Unknown';
+      final status = study['protocolSection']['statusModule']
+              ['overallStatus'] ??
+          'Unknown';
+      final startDate = study['protocolSection']['statusModule']
+              ['startDateStruct']?['date'] ??
+          'Unknown';
+      final completionDate = study['protocolSection']['statusModule']
+              ['completionDateStruct']?['date'] ??
+          'Unknown';
+      final sponsor = study['protocolSection']['sponsorCollaboratorsModule']
+              ['leadSponsor']?['name'] ??
+          'Unknown';
+      final locations = study['protocolSection']['contactsLocationsModule']
+              ?['locations'] ??
+          [];
+      final location = locations.isNotEmpty
+          ? '${locations[0]['city']}, ${locations[0]['country']}'
+          : 'Unknown';
+
+      csvData.add([
+        id,
+        title,
+        org,
+        status,
+        startDate,
+        completionDate,
+        sponsor,
+        location
+      ]);
+    }
+    getIpLocation().then((location) {
+      setState(() {
+        center1 = location;
+      });
+    });
+    String csv = const ListToCsvConverter().convert(csvData);
+    final bytes = utf8.encode(csv);
+    final blob = html.Blob([bytes]);
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute("download", "clinical_trials.csv")
+      ..click();
+    html.Url.revokeObjectUrl(url);
+  }
+
+  Future<LatLng> getIpLocation() async {
+    final response = await http.get(Uri.parse('https://ipapi.co/json/'));
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return LatLng(data['latitude'], data['longitude']);
+    }
+    return const LatLng(39.92077, 32.85411); // Varsayılan konum
+  }
+
+  void openMap() {
+    double latitude = 39.92077; // Varsayılan: Ankara
+    double longitude = 32.85411;
+    if (filters.containsKey('queryLocn') &&
+        filters['queryLocn'] != null &&
+        filters['queryLocn']!.isNotEmpty) {
+      List<String> latLng = filters['queryLocn']!.split(',');
+      if (latLng.length == 2) {
+        latitude = double.tryParse(latLng[0]) ?? latitude;
+        longitude = double.tryParse(latLng[1]) ?? longitude;
+      }
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(
+            title: const Text('Google Maps'),
+            backgroundColor: Colors.green[700],
+          ),
+          body: GoogleMap(
+            onMapCreated: _onMapCreated,
+            initialCameraPosition: CameraPosition(
+              target: center1, // Dinamik konum
+              zoom: 11.0,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   List<String> overallStatusOptions = [
     'ACTIVE_NOT_RECRUITING',
@@ -38,13 +195,23 @@ class _MainPageState extends State<MainPage> {
     'UNKNOWN'
   ];
 
-  List<String> selectedOverallStatus = [];
-
   @override
-  void initState() {
-    super.initState();
-    fetchData();
-  }
+void initState() {
+  super.initState();
+  selectedOverallStatus = ['RECRUITING'];
+  filters['filteroverallStatus'] = 'RECRUITING';
+  queryParameters['filter.overallStatus'] = 'RECRUITING';
+  // Kullanıcının konumunu al ve ardından API çağrısını yap
+  getUserLocation().then((location) {
+    setState(() {
+      center1 = location;
+    });
+    fetchData(); // Konum alındıktan sonra API isteğini at
+  }).catchError((error) {
+    print("Konum alınamadı: $error");
+    fetchData(); // Konum alınamazsa bile API isteği atılsın
+  });
+}
 
   Future<void> fetchData() async {
     try {
@@ -65,6 +232,8 @@ class _MainPageState extends State<MainPage> {
   void filterStudies() {
     if (filters['queryCond'] != null && filters['queryCond']!.isNotEmpty) {
       queryParameters['query.cond'] = filters['queryCond']!;
+    } else {
+      queryParameters['query.cond'] = '';
     }
     if (filters['filterLocn'] != null && filters['filterLocn']!.isNotEmpty) {
       final locnRegex = RegExp(
@@ -77,6 +246,11 @@ class _MainPageState extends State<MainPage> {
         return;
       }
       queryParameters['filter.geo'] = filters['filterLocn']!;
+    } else {
+      if (queryParameters['filter.geo'] != null &&
+          queryParameters['filter.geo']!.isNotEmpty) {
+        queryParameters.remove('filter.geo');
+      }
     }
     if (filters['queryTerm'] != null && filters['queryTerm']!.isNotEmpty) {
       queryParameters['query.term'] = filters['queryTerm']!;
@@ -114,7 +288,7 @@ class _MainPageState extends State<MainPage> {
       queryParameters['aggFilters'] = filters['agg.Filters']!;
     }
     if (selectedOverallStatus.isNotEmpty) {
-    queryParameters['filter.overallStatus'] = selectedOverallStatus.join(',');
+      queryParameters['filter.overallStatus'] = selectedOverallStatus.join(',');
     }
     fetchData();
   }
@@ -138,25 +312,26 @@ class _MainPageState extends State<MainPage> {
       'agg.Filters': 'Agg Filters',
       'filteroverallStatus': 'Status',
     };
-
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text("Clinical Trials",
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text("Clinical Trials"),
         backgroundColor: Colors.white,
-        actions: isMobile
-            ? [
-                IconButton(
-                  icon: const Icon(Icons.filter_list),
-                  onPressed: () {
-                    setState(() {
-                      showFilters = !showFilters;
-                    });
-                  },
-                )
-              ]
-            : [],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.map),
+            onPressed: openMap,
+          ),
+          if (isMobile)
+            IconButton(
+              icon: const Icon(Icons.filter_list),
+              onPressed: () {
+                setState(() {
+                  showFilters = !showFilters;
+                });
+              },
+            ),
+        ],
       ),
       body: Row(
         children: [
@@ -353,6 +528,14 @@ class _MainPageState extends State<MainPage> {
                             .toList();
                       });
                     },
+                  ),
+                ),
+                AppBar(
+                  title: const Text("Clinical Trials"),
+                  backgroundColor: Colors.white,
+                  leading: IconButton(
+                    icon: const Icon(Icons.download),
+                    onPressed: downloadCSV,
                   ),
                 ),
                 Expanded(
